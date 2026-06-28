@@ -15070,6 +15070,77 @@
             window.bleEditor = new SonicakeBLEEditor();
             window.bleEditor.startEditor(); // Automatically start the editor on page load
         });
+
+        // --- EXTERNAL MIDI CONTROLLER ADD-ON (M-VAVE CHOCOLATE) ---
+        function initializeExternalMidiController() {
+            const chocolateBtn = document.getElementById('connect-chocolate-btn');
+
+            if (!navigator.requestMIDIAccess) {
+                alert("WebMIDI is not supported in this browser.");
+                return;
+            }
+
+            // Change button text to show it's working
+            chocolateBtn.innerText = "Looking for M-Vave...";
+
+            navigator.requestMIDIAccess().then(midiAccess => {
+                let found = false;
+
+                // 1. Loop through connected devices to find the M-Vave
+                for (let input of midiAccess.inputs.values()) {
+                    // Check if the device name contains common identifiers for the M-Vave
+                    if (input.name.toLowerCase().includes("chocolate") ||
+                        input.name.toLowerCase().includes("m-vave") ||
+                        input.name.toLowerCase().includes("bluetooth")) {
+
+                        input.onmidimessage = handleExternalMidiMessage;
+                        found = true;
+                        chocolateBtn.innerText = "M-Vave Connected";
+                        chocolateBtn.style.background = "linear-gradient(145deg, #2d6a4f, #1b4332)"; // Turn green
+                        console.log(`Successfully hooked up to: ${input.name}`);
+                    }
+                }
+
+                if (!found) {
+                    chocolateBtn.innerText = "Not Found. Try Again?";
+                    setTimeout(() => { chocolateBtn.innerText = "Connect M-Vave"; }, 3000);
+                }
+
+            }).catch(err => {
+                console.error("MIDI Access denied:", err);
+                chocolateBtn.innerText = "MIDI Access Denied";
+            });
+        }
+
+        function handleExternalMidiMessage(event) {
+            const status = event.data[0];
+            const data1 = event.data[1];
+            const velocity = event.data[2];
+
+            console.log(`Incoming MIDI -> Status: ${status} | Data1: ${data1} | Velocity: ${velocity}`);
+
+            // Hardcoded. Change according to the message sent by the unit
+            if (status === 176 && data1 === 0 && velocity == 50) {
+
+                // Reminder: Update this ID to match your actual Tap Tempo button!
+                const tapTempoBtn = document.getElementById('tap-button-7');
+
+                if (tapTempoBtn) {
+                    tapTempoBtn.click();
+
+                    tapTempoBtn.style.transform = 'scale(0.95)';
+                    setTimeout(() => { tapTempoBtn.style.transform = 'scale(1)'; }, 100);
+                }
+            }
+        }
+
+        // Attach the function to our new button once the page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            const chocolateBtn = document.getElementById('connect-chocolate-btn');
+            if (chocolateBtn) {
+                chocolateBtn.addEventListener('click', initializeExternalMidiController);
+            }
+        });
     </script>
 </body>
 </html>

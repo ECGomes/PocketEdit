@@ -15073,82 +15073,135 @@
         });
 
         // --- EXTERNAL MIDI CONTROLLER ADD-ON (M-VAVE CHOCOLATE) ---
-        function initializeExternalMidiController() {
-            const chocolateBtn = document.getElementById('connect-chocolate-btn');
+        // Universal Implementation with OS Detection
 
-            if (!navigator.requestMIDIAccess) {
-                alert("WebMIDI is not supported in this browser.");
+        // 1. Detect if the user is on an Android device
+        const isAndroid = /Android/i.test(navigator.userAgent);
+
+        async function initializeExternalMidiController() {
+            const chocolateBtn = document.getElementById('connect-chocolate-btn');
+            if (!chocolateBtn) return;
+
+            // Route to the correct connection method based on the OS flag
+            if (isAndroid) {
+                console.log("📱 Android detected: Routing to Direct BLE Web Bluetooth.");
+                await connectViaBluetooth(chocolateBtn);
+            } else {
+                console.log("💻 Desktop/Other detected: Routing to Web MIDI.");
+                await connectViaWebMIDI(chocolateBtn);
+            }
+        }
+
+        // --- METHOD A: DIRECT BLE (For Android) ---
+        async function connectViaBluetooth(btn) {
+            if (!navigator.bluetooth) {
+                alert("❌ Web Bluetooth is not supported in this browser.");
                 return;
             }
 
-            // Change button text to show it's working
-            chocolateBtn.innerText = "Looking for M-Vave...";
+            try {
+                btn.innerText = "⏳ Select M-Vave...";
+                const BLE_MIDI_SERVICE = '03b80e5a-ede8-4b33-a751-6ce34ec4c700';
+                const BLE_MIDI_CHARACTERISTIC = '7772e5db-3868-4112-a1a9-f2669d106bf3';
 
-            navigator.requestMIDIAccess().then(midiAccess => {
+                const device = await navigator.bluetooth.requestDevice({
+                    filters: [{ services: [BLE_MIDI_SERVICE] }]
+                });
+
+                btn.innerText = "⏳ Connecting...";
+                const server = await device.gatt.connect();
+                const service = await server.getPrimaryService(BLE_MIDI_SERVICE);
+                const characteristic = await service.getCharacteristic(BLE_MIDI_CHARACTERISTIC);
+
+                await characteristic.startNotifications();
+                characteristic.addEventListener('characteristicvaluechanged', (e) => {
+                    const value = e.target.value;
+                    if (value.byteLength >= 5) {
+                        // Parse BLE MIDI timestamp wrapper
+                        triggerTapTempo(value.getUint8(2), value.getUint8(3), value.getUint8(4));
+                    }
+                });
+
+                btn.innerText = "✅ Connected (BLE)";
+                btn.style.background = "linear-gradient(145deg, #2d6a4f, #1b4332)";
+
+                device.addEventListener('gattserverdisconnected', () => {
+                    resetButton(btn, "❌ Disconnected");
+                });
+
+            } catch (error) {
+                console.error("BLE MIDI Error:", error);
+                resetButton(btn, "❌ Connection Failed");
+            }
+        }
+
+        // --- METHOD B: WEB MIDI (For Mac/Windows) ---
+        async function connectViaWebMIDI(btn) {
+            if (!navigator.requestMIDIAccess) {
+                alert("❌ WebMIDI is not supported in this browser.");
+                return;
+            }
+
+            try {
+                btn.innerText = "⏳ Scanning...";
+                const midiAccess = await navigator.requestMIDIAccess();
                 let found = false;
 
-                // 1. Loop through connected devices to find the M-Vave
                 for (let input of midiAccess.inputs.values()) {
-                    // Check if the device name contains common identifiers for the M-Vave
                     if (input.name.toLowerCase().includes("chocolate") ||
                         input.name.toLowerCase().includes("m-vave") ||
                         input.name.toLowerCase().includes("bluetooth") ||
-                        input.name.toLowerCase().includes("footctrl")){
+                        input.name.toLowerCase().includes("footctrlplus")) {
 
-                        input.onmidimessage = handleExternalMidiMessage;
+                        input.onmidimessage = (e) => {
+                            triggerTapTempo(e.data[0], e.data[1], e.data[2]);
+                        };
+
                         found = true;
-                        chocolateBtn.innerText = "M-Vave Connected";
-                        chocolateBtn.style.background = "linear-gradient(145deg, #2d6a4f, #1b4332)"; // Turn green
-                        console.log(`Successfully hooked up to: ${input.name}`);
+                        btn.innerText = "✅ Connected (MIDI)";
+                        btn.style.background = "linear-gradient(145deg, #2d6a4f, #1b4332)";
                     }
                 }
 
                 if (!found) {
-                    if (deviceList.length > 0) {
-                        alert("Found the following MIDI devices, but no M-Vave: \n\n" + deviceList.join("\n"));
-                    } else {
-                        alert("The browser does not see MIDI devices right now.");
-                    }
-
-                    chocolateBtn.innerText = "Not Found. Try Again?";
-                    setTimeout(() => { chocolateBtn.innerText = "Connect M-Vave"; }, 3000);
+                    resetButton(btn, "❌ Not Found");
                 }
 
-            }).catch(err => {
-                console.error("MIDI Access denied:", err);
-                chocolateBtn.innerText = "MIDI Access Denied\n" + err;
-            });
+            } catch (error) {
+                console.error("WebMIDI Error:", error);
+                resetButton(btn, "❌ Access Denied");
+            }
         }
 
-        function handleExternalMidiMessage(event) {
-            const status = event.data[0];
-            const data1 = event.data[1];
-            const velocity = event.data[2];
-
-            console.log(`Incoming MIDI -> Status: ${status} | Data1: ${data1} | Velocity: ${velocity}`);
-
-            // Hardcoded. Change according to the message sent by the unit
-            if (status === 176 && data1 === 0 && velocity == 50) {
-
-                // Reminder: Update this ID to match your actual Tap Tempo button!
+        // --- SHARED LOGIC: TRIGGER TAP TEMPO ---
+        function triggerTapTempo(status, data1, velocity) {
+            if (status === 176 && data1 === 0 && velocity === 50) {
                 const tapTempoBtn = document.getElementById('tap-button-7');
 
                 if (tapTempoBtn) {
                     tapTempoBtn.click();
-
+                    // Visual feedback
                     tapTempoBtn.style.transform = 'scale(0.95)';
                     setTimeout(() => { tapTempoBtn.style.transform = 'scale(1)'; }, 100);
                 }
             }
         }
 
-        // Attach the function to our new button once the page loads
+        // Helper to reset the button if something fails
+        function resetButton(btn, text) {
+            btn.innerText = text;
+            btn.style.background = ""; // Clear the green background
+            setTimeout(() => { btn.innerText = "🍫 Connect M-Vave"; }, 3000);
+        }
+
+        // Attach to the button on page load
         document.addEventListener('DOMContentLoaded', () => {
             const chocolateBtn = document.getElementById('connect-chocolate-btn');
             if (chocolateBtn) {
                 chocolateBtn.addEventListener('click', initializeExternalMidiController);
             }
         });
+        // -----------------------------------------------------------
     </script>
 </body>
 </html>

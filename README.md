@@ -16,6 +16,9 @@ You can now directly access PocketEdit online!
 The latest version is always available directly here:
 **[https://suckyble.github.io/PocketEdit/](https://suckyble.github.io/PocketEdit/)**
 
+-> This repository's version can be accessed here:
+**[https://ecgomes.github.io/PocketEdit/](https://ecgomes.github.io/PocketEdit/)**
+
 ## **Features**
 
 * **Dual Connectivity:** Now supports **USB WebMIDI** (default) with a fallback to **Bluetooth**. USB MIDI support allows the editor to work in **Firefox** and other non-Chromium browsers. (thanks to @hnikolov)

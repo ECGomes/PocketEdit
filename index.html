@@ -15092,7 +15092,8 @@
                     // Check if the device name contains common identifiers for the M-Vave
                     if (input.name.toLowerCase().includes("chocolate") ||
                         input.name.toLowerCase().includes("m-vave") ||
-                        input.name.toLowerCase().includes("bluetooth")) {
+                        input.name.toLowerCase().includes("bluetooth"))  ||
+                        input.name.toLowerCase().includes("footctrl")){
 
                         input.onmidimessage = handleExternalMidiMessage;
                         found = true;

@@ -15164,6 +15164,12 @@
                 }
 
                 if (!found) {
+                    if (deviceList.length > 0) {
+                        alert("Found the following MIDI devices, but no M-Vave: \n\n" + deviceList.join("\n"));
+                    } else {
+                        alert("The browser does not see devices right now.");
+                    }
+
                     resetButton(btn, "❌ Not Found");
                 }
 

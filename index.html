@@ -11390,6 +11390,9 @@
                 this.confirmUsbBtn = document.getElementById('confirmUsbBtn');
                 this.cancelUsbBtn = document.getElementById('cancelUsbBtn');
 
+                this.toggleGlobalVolume = 1;
+                this.currentVolume = document.querySelector('.global-volume-control .slider').value;
+
                 // Add a global keydown listener for the space bar to control tap tempo.
                 document.addEventListener('keydown', (e) => {
                      // Get the currently focused element on the page.
@@ -11414,8 +11417,46 @@
                              setTimeout(() => tapButton.classList.remove('beat-flash'), 100);
                          }
                      }
+
+                     if (e.code === 'Equal' || e.code === 'NumpadAdd' && activeEl.tagName !== 'INPUT') {
+                         e.preventDefault();
+
+                         const volumeSlider = document.querySelector('.global-volume-control .slider');
+                         const volumeDisplay = document.querySelector('.global-volume-control .slider-value');
+
+                         this.toggleGlobalVolume = 1 - this.toggleGlobalVolume;
+
+                         if (volumeSlider && volumeDisplay) {
+                             volumeSlider.value = this.toggleGlobalVolume * 80;
+                             volumeDisplay.textContent = this.toggleGlobalVolume * 80;
+                             this.updateSliderProgress(volumeSlider);
+
+                             volumeSlider.dispatchEvent(new Event('input', { bubbles: true }));
+                         }
+                     }
+
+                     if (e.code === 'PageDown') {
+                         e.preventDefault(); // Stop page from scrolling
+                         const currentPatch = document.querySelector('.patch-item.selected');
+                      
+                         if (currentPatch && currentPatch.nextElementSibling) {
+                           const targetPatch = currentPatch.nextElementSibling;
+                           targetPatch.click();
+                           targetPatch.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+                          }
+                     }
+
+                     if (e.code === 'PageUp') {
+                         e.preventDefault(); // Stop page from scrolling
+                         const currentPatch = document.querySelector('.patch-item.selected');
+                      
+                         if (currentPatch && currentPatch.previousElementSibling) {
+                           const targetPatch = currentPatch.previousElementSibling;
+                           targetPatch.click();
+                           targetPatch.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+                          }
+                     }
                  });
-                 // --- END OF ADDED BLOCK ---
             }
 
             updateSliderProgress(sliderElement) {
@@ -11543,11 +11584,11 @@
                     await new Promise(resolve => setTimeout(resolve, 200)); // Wait 200ms for notification
 
                     // Only show the warning if a preset is modified AND an initial sync is NOT in progress.
-                if (this.isPresetModified && !this.isInitialSyncing) {
-                        if (!confirm("Current preset has been modified and not saved, do you still want to continue?")) {
-                            return; // Stop if user clicks "Cancel"
-                        }
-                    }
+                // if (this.isPresetModified && !this.isInitialSyncing) {
+                //         if (!confirm("Current preset has been modified and not saved, do you still want to continue?")) {
+                //             return; // Stop if user clicks "Cancel"
+                //        }
+                //    }
                 }
 
                 if (this.isConnected && sendCommand) {
@@ -15124,7 +15165,6 @@
             // Hardcoded. Change according to the message sent by the unit
             if (status === 176 && data1 === 0 && velocity == 50) {
 
-                // Reminder: Update this ID to match your actual Tap Tempo button!
                 const tapTempoBtn = document.getElementById('tap-button-7');
 
                 if (tapTempoBtn) {
